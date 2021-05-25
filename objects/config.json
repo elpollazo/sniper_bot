@@ -1,0 +1,46 @@
+{
+	"amazon":
+	{
+		"cards":{
+				"rtx-3070": {
+					"url": "https://www.amazon.com/gp/aws/cart/add-res.html?Quantity.1=1&OfferListingId.1=7VrS%252FUP79nuwrVHsnF78MamJUEYI3erHfKIqiJl%252BNzi9R5Np%252BKWACpQywvLpg9I0%252BMdNi3LqINSBmKJ2SnY6uwTNvjce6erK25zAb8rBdZpqVolizfji1w%253D%253D&tag=fixitservices-20&AssociateTag=fixitservices-20",
+					"out_of_stock_id": "a-color-error"
+					} 
+		},
+		"buy_steps":[
+		{
+			"class": "a-button-input",
+			"type": "button",
+			"comment": "Added to Cart"
+		},
+		{
+			"class": "a-button.a-button-normal.a-button-span12.a-button-primary",
+			"type": "button",
+			"comment": "Checkout"
+		},
+		{
+			"class": "email",
+			"type": "text",
+			"key": "",
+			"comment": "Inserting email"
+		},
+		{
+			"class": "a-button.a-button-span12.a-button-primary",
+			"type": "button",
+			"comment": ""
+		},
+		{
+			"class": "password",
+			"type": "text",
+			"key": "",
+			"comment": "Inserting password"
+		},
+		{
+			"class": "a-button.a-button-span12.a-button-primary",
+			"type": "button",
+			"comment": ""
+		}
+		]
+
+	}
+}
