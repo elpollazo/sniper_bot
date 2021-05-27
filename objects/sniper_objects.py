@@ -5,7 +5,6 @@ class Card:
 		self.name = name 
 		self.url = config()[page]['cards'][self.name]['url']
 		self.html = None
-		self.out_of_stock_id = config()[page]['cards'][self.name]['out_of_stock_id']
 		self.captched = False
 
 class Page:

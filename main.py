@@ -14,7 +14,13 @@ def check_stock(card, page, proxy) -> bool:
     print('Checking stock...')
     options = Options()
     options.headless = True
-    driver = webdriver.Firefox(capabilities=set_capabilities(proxy.address), options=options, executable_path=r'./geckodriver')
+    capabilities = set_capabilities(proxy.address)
+    if capabilities:
+        driver = webdriver.Firefox(capabilities=set_capabilities(proxy.address), options=options, executable_path=r'./geckodriver')
+    
+    else:
+        driver = webdriver.Firefox(options=options, executable_path=r'./geckodriver')
+    
     try:
         driver.get(card.url)
 
@@ -45,20 +51,25 @@ def check_stock(card, page, proxy) -> bool:
         return True
 
 def set_capabilities(proxy_address) -> object:
-    firefox_capabilities = webdriver.DesiredCapabilities.FIREFOX
-    firefox_capabilities['marionette'] = True
+    if proxy_address[0] != '127.0.0.1':
+        return None
 
-    firefox_capabilities['proxy'] = {
-        "proxyType": "MANUAL",
-        "httpProxy": proxy_address,
-        "ftpProxy": proxy_address,
-        "sslProxy": proxy_address
-    }
+    else:
+        firefox_capabilities = webdriver.DesiredCapabilities.FIREFOX
+        firefox_capabilities['marionette'] = True
 
-    return firefox_capabilities
+        firefox_capabilities['proxy'] = {
+            "proxyType": "MANUAL",
+            "httpProxy": proxy_address,
+            "ftpProxy": proxy_address,
+            "sslProxy": proxy_address
+        }
+
+        return firefox_capabilities
     
 def buy_card(page, card, args) -> None:
     print('buying card')
+    args.timedout = False
     options = Options()
     if args.headless == 1:
         options.headless = True
@@ -71,6 +82,7 @@ def buy_card(page, card, args) -> None:
     for step in page.buy_steps:
         done = False
         count = 0
+        init = time.time()
         while not done:
             try:
                 if step['type'] == 'button':
@@ -87,27 +99,38 @@ def buy_card(page, card, args) -> None:
                 
                 done = True
 
-            except NoSuchElementException:
-                print('NoSuchElementException, retrying')
-                time.sleep(1)
-                count+=1
-                if count > 3:
-                    break
+            except:
+                if time.time() - init > args.timedout_time:
+                    print('Timedout')
+                    args.timedout = True
+
+                    return args
+
+                else:
+                    print('NoSuchElementException, retrying')
+                    time.sleep(1)
 
     done = False
+    init = time.time()
+    print('Getting price')
     while not done:
         try:
             price_label = bs4.BeautifulSoup(driver.page_source, 'html.parser').select('.a-text-right.a-text-bold')[1].text
             done = True
+
         except:
-            print('Getting price')
+            if time.time() - init > args.timedout_time:
+                print('Timedout')
+                args.timedout = True
+
+                return args
 
     price = float(price_label.replace('\n', '').replace('USD', '').replace(' ','').replace(',', ''))
     if price > args.maxprice:
         print(f'Current price is USD {price}, max price addmited is {args.maxprice}')
         print('Shutting down')
 
-        return None
+        return args
     
     else:
         if args.drymode == 0:
@@ -119,6 +142,8 @@ def buy_card(page, card, args) -> None:
     print('buying process done')
     time.sleep(5)
     driver.quit()
+
+    return args
 
 def parse_proxies():
     with open('./proxy/proxies.txt', 'r') as f:
@@ -136,6 +161,9 @@ def main(args) -> None:
     print(f'Headless: {args.headless}')
     print('Loading proxies')
     proxy_address = parse_proxies()
+    if not proxy_address:
+        proxy_address = ['127.0.0.1']
+
     while True:
         for address in proxy_address:
             proxy = Proxy(address)
@@ -148,12 +176,15 @@ def main(args) -> None:
                         time.sleep(abs(int(np.random.normal(10, 5, 1))))
                 
                 if not card.captched:
-                    buy_card(page, card, args)
-                    exit()
+                    args = buy_card(page, card, args)
+                    if args.timedout:
+                        break
 
                 else: 
                     proxy.captched = True
                     card.captched = False
+
+
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Buyer bot')
@@ -162,5 +193,6 @@ if __name__ == '__main__':
     parser.add_argument("-m", "--maxprice", help='Max price', type=float)
     parser.add_argument("-d", "--drymode", help='Dry mode bot', type=int)
     parser.add_argument("-H", "--headless", help='Headless browser', type=int)
+    parser.add_argument("-t", "--timedout_time", help='Timedout time', type=int)
     args = parser.parse_args()
     main(args)
