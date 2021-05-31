@@ -1,198 +1,89 @@
-import argparse
-import bs4
-import time
-from objects.sniper_objects import Card, Page, Proxy
-from objects.common import config
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver.firefox.options import Options 
-import numpy as np
-from datetime import datetime
+import bs4
+import re
+import requests
+import json
+import time
+from selenium.webdriver.firefox.options import Options
+from objects.common import config 
+import argparse
+import os
 
+stock_pattern = re.compile(r'https://twitter.*?')
+atc_pattern = re.compile(r'https://.*Quantity.*OfferListingId.*?')
 
-def check_stock(card, page, proxy) -> bool:
-    print('Checking stock...')
-    options = Options()
-    options.headless = True
-    capabilities = set_capabilities(proxy.address)
-    if capabilities:
-        driver = webdriver.Firefox(capabilities=set_capabilities(proxy.address), options=options, executable_path=r'./geckodriver')
-    
-    else:
-        driver = webdriver.Firefox(options=options, executable_path=r'./geckodriver')
-    
-    try:
-        driver.get(card.url)
+def retreive_messages(channel_id, auth):
+	headers = {
+	'authorization': auth
+	}
+	done = False
+	while not done:
+		try:
+			r = requests.get(f'https://discord.com/api/v9/channels/{channel_id}/messages?limit=1', headers=headers)
+			response = json.loads(r.text)
 
-    except:
-        print('Captched')
-        card.captched = True
-        driver.quit()
+		except:
+			print('Resting')
+			time.sleep(10)
 
-        return True
+	return response[0]['content']
 
-    if not bs4.BeautifulSoup(driver.page_source, 'html.parser').select('.a-button-input'):
-        print('No stock, sleep time')
-        driver.quit()
-        
-        return False
+def check_stock(args):
+	channel_id = config()[args.page]['cards'][args.card]['channel_id']
+	auth = config()[args.page]['discord_auth']
+	latest_message = retreive_messages(channel_id, auth)
+	new_message = retreive_messages(channel_id, auth)
+	while latest_message == new_message or not stock_pattern.match(new_message):
+		print('No stock')
+		time.sleep(10)
+		new_message = retreive_messages(channel_id, auth)
 
-    elif bs4.BeautifulSoup(driver.page_source, 'html.parser').select('.a-button-input'):
-        print('There is stock')
-        driver.quit()
+	url = new_message.split()[0]
+	print(f'New url found: {url}')
 
-        return True
+	return url
 
-    else:
-        print('Connectivity-Captcha problem')
-        card.captched = True
-        driver.quit()
+def get_atc_url(twitter_url, args):
+	print('Getting ATC url')
+	options = Options()
+	options.headless = True
+	driver = webdriver.Firefox(executable_path = r'./geckodriver', options=options)
+	driver.get(twitter_url)
+	done = False
+	while not bs4.BeautifulSoup(driver.page_source, 'html.parser').select(config()[args.page]['atc_class']):
+		pass
 
-        return True
+	soup = bs4.BeautifulSoup(driver.page_source, 'html.parser')
+	driver.quit()
+	for element in soup.select(config()[args.page]['atc_class']):
+		if atc_pattern.match(element.text):
 
-def set_capabilities(proxy_address) -> object:
-    if proxy_address[0] != '127.0.0.1':
-        return None
+			return element.text
 
-    else:
-        firefox_capabilities = webdriver.DesiredCapabilities.FIREFOX
-        firefox_capabilities['marionette'] = True
+		else:
+			continue
 
-        firefox_capabilities['proxy'] = {
-            "proxyType": "MANUAL",
-            "httpProxy": proxy_address,
-            "ftpProxy": proxy_address,
-            "sslProxy": proxy_address
-        }
+def buy_card(atc_url):
+	print('Buying card')
+	os.system(f'python3 buyer.py --card {args.card} --page {args.page} --drymode {config()[args.page]["drymode"]} --headless {config()[args.page]["headless"]} --maxprice {config()[args.page]["maxprice"]} --timedout_time {config()[args.page]["timedout_time"]} --url "{atc_url}"')
 
-        return firefox_capabilities
-    
-def buy_card(page, card, args) -> None:
-    print('buying card')
-    args.timedout = False
-    options = Options()
-    if args.headless == 1:
-        options.headless = True
+def main(args):
+	atc_urls = []
+	print('Starting bot')
+	while True:
+		twitter_url = check_stock(args)
+		atc_url = get_atc_url(twitter_url, args)
+		if atc_url not in atc_urls:
+			print(f'New ATC url found: {atc_url}')
+			atc_urls.append(atc_url)
+			buy_card(atc_url)
 
-    else:
-        pass
+		else:
+			print('not new ATC')			
 
-    driver = webdriver.Firefox(options=options, executable_path=r'./geckodriver')
-    driver.get(card.url)
-    for step in page.buy_steps:
-        done = False
-        count = 0
-        init = time.time()
-        while not done:
-            try:
-                if step['type'] == 'button':
-                    driver.find_element_by_class_name(step['class']).click()
-
-                elif step['type'] == 'text':
-                    driver.find_element_by_name(step['class']).send_keys(step['key'])
-
-                elif step['type'] == 'xpath':
-                    driver.find_element_by_xpath(step['class']).click()
-
-                if step['comment']:
-                    print(step['comment'])
-                
-                done = True
-
-            except:
-                if time.time() - init > args.timedout_time:
-                    print('Timedout')
-                    args.timedout = True
-
-                    return args
-
-                else:
-                    print('NoSuchElementException, retrying')
-                    time.sleep(1)
-
-    done = False
-    init = time.time()
-    print('Getting price')
-    while not done:
-        try:
-            price_label = bs4.BeautifulSoup(driver.page_source, 'html.parser').select('.a-text-right.a-text-bold')[1].text
-            done = True
-
-        except:
-            if time.time() - init > args.timedout_time:
-                print('Timedout')
-                args.timedout = True
-
-                return args
-
-    price = float(price_label.replace('\n', '').replace('USD', '').replace(' ','').replace(',', ''))
-    if price > args.maxprice:
-        print(f'Current price is USD {price}, max price addmited is {args.maxprice}')
-        print('Shutting down')
-
-        return args
-    
-    else:
-        if args.drymode == 0:
-            driver.find_element_by_class_name('a-button-text.place-your-order-button').click()
-
-        else:
-            pass
-
-    print('buying process done')
-    time.sleep(5)
-    driver.quit()
-
-    return args
-
-def parse_proxies():
-    with open('./proxy/proxies.txt', 'r') as f:
-        lines = [line.split()[0] for line in f]
-
-    return lines
-
-
-def main(args) -> None:
-    card = Card(args.card, args.page)
-    page = Page(args.page)
-    print('Starting bot')
-    print(f'Max price: {args.maxprice} USD')
-    print(f'Dry mode: {args.drymode}')
-    print(f'Headless: {args.headless}')
-    print('Loading proxies')
-    proxy_address = parse_proxies()
-    if not proxy_address:
-        proxy_address = ['127.0.0.1']
-
-    while True:
-        for address in proxy_address:
-            proxy = Proxy(address)
-            print(f'Setting proxy to {proxy.address}')
-            stock = False
-            while not proxy.captched:
-                while not stock:
-                    stock = check_stock(card, page, proxy)
-                    if not card.captched:
-                        time.sleep(abs(int(np.random.normal(10, 5, 1))))
-                
-                if not card.captched:
-                    args = buy_card(page, card, args)
-                    if args.timedout:
-                        break
-
-                else: 
-                    proxy.captched = True
-                    card.captched = False
-
-
-    
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Buyer bot')
-    parser.add_argument("-c", "--card", help='Type of card')
-    parser.add_argument("-p", "--page", help='Buying page')
-    parser.add_argument("-m", "--maxprice", help='Max price', type=float)
-    parser.add_argument("-d", "--drymode", help='Dry mode bot', type=int)
-    parser.add_argument("-H", "--headless", help='Headless browser', type=int)
-    parser.add_argument("-t", "--timedout_time", help='Timedout time', type=int)
-    args = parser.parse_args()
-    main(args)
+	parser = argparse.ArgumentParser(description='Main script')
+	parser.add_argument("-c", "--card", help='Type of card')
+	parser.add_argument("-p", "--page", help='Type of card')
+	args = parser.parse_args()
+	main(args)
