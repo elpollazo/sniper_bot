@@ -1,10 +1,15 @@
 {
 	"amazon":
 	{
+		"atc_class": ".css-4rbku5.css-18t94o4.css-901oao.css-16my406.r-1n1174f.r-1loqt21.r-poiln3.r-bcqeeo.r-qvutc0",
+		"discord_auth": "",
+		"drymode": "1",
+		"headless": "0",
+		"maxprice": "800",
+		"timedout_time": "7",
 		"cards":{
 				"rtx-3070": {
-					"url": "",
-					"type": ""
+					"channel_id": "795837437062283274"
 					} 
 		},
 		"buy_steps":[

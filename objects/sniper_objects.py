@@ -3,7 +3,7 @@ from objects.common import config
 class Card:
 	def __init__(self, name, page):
 		self.name = name 
-		self.url = config()[page]['cards'][self.name]['url']
+		self.url = None
 		self.html = None
 		self.captched = False
 
