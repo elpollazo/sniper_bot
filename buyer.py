@@ -1,7 +1,7 @@
 import argparse
 import bs4
 import time
-from objects.sniper_objects import Card, Page, Proxy
+from objects.sniper_objects import Card, Page
 from objects.common import config
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
@@ -13,7 +13,7 @@ import logging
 FORMAT = '%(asctime)-8s %(message)s'
 logging.basicConfig(format=FORMAT)
 
-def check_stock(card, page, proxy) -> bool:
+def check_stock(card, page) -> bool:
     logging.warning('Checking stock...')
     options = Options()
     if args.headless == 1:
@@ -22,12 +22,7 @@ def check_stock(card, page, proxy) -> bool:
     else:
         pass
 
-    capabilities = set_capabilities(proxy.address)
-    if capabilities:
-        driver = webdriver.Firefox(capabilities=set_capabilities(proxy.address), options=options, executable_path=r'./geckodriver')
-    
-    else:
-        driver = webdriver.Firefox(options=options, executable_path=r'./geckodriver')
+    driver = webdriver.Firefox(options=options, executable_path=r'./geckodriver')
     
     try:
         driver.get(card.url)
@@ -56,23 +51,6 @@ def check_stock(card, page, proxy) -> bool:
         driver.quit()
 
         return True, None
-
-def set_capabilities(proxy_address) -> object:
-    if proxy_address[0] != '127.0.0.1':
-        return None
-
-    else:
-        firefox_capabilities = webdriver.DesiredCapabilities.FIREFOX
-        firefox_capabilities['marionette'] = True
-
-        firefox_capabilities['proxy'] = {
-            "proxyType": "MANUAL",
-            "httpProxy": proxy_address,
-            "ftpProxy": proxy_address,
-            "sslProxy": proxy_address
-        }
-
-        return firefox_capabilities
     
 def buy_card(page, card, args, driver) -> None:
     print('buying card')
@@ -141,13 +119,6 @@ def buy_card(page, card, args, driver) -> None:
 
     exit()
 
-def parse_proxies():
-    with open('./proxy/proxies.txt', 'r') as f:
-        lines = [line.split()[0] for line in f]
-
-    return lines
-
-
 def main(args) -> None:
     card = Card(args.card, args.page)
     card.url = args.url
@@ -156,35 +127,27 @@ def main(args) -> None:
     print(f'Max price: {args.maxprice} USD')
     print(f'Dry mode: {args.drymode}')
     print(f'Headless: {args.headless}')
-    print('Loading proxies')
-    proxy_address = parse_proxies()
-    if not proxy_address:
-        proxy_address = ['127.0.0.1']
 
     while True:
-        for address in proxy_address:
-            proxy = Proxy(address)
-            print(f'Setting proxy to {proxy.address}')
+        while True:
             stock = False
-            while not proxy.captched:
-                init = time.time()
-                while not stock:
-                    stock, driver = check_stock(card, page, proxy)
-                    if not card.captched:
-                        time.sleep(abs(int(np.random.normal(10, 5, 1))))
-
-                    if time.time() - init > 60*15:
-                        print('Buy timedout')
-                        exit()
-                
+            init = time.time()
+            while not stock:
+                stock, driver = check_stock(card, page)
                 if not card.captched:
-                    args = buy_card(page, card, args, driver)
-                    if args.timedout:
-                        break
+                    time.sleep(abs(int(np.random.normal(10, 5, 1))))
 
-                else: 
-                    proxy.captched = True
-                    card.captched = False
+                if time.time() - init > 60*15:
+                    print('Buy timedout')
+                    exit()
+                    
+            if not card.captched:
+                args = buy_card(page, card, args, driver)
+                if args.timedout:
+                    break
+
+            else: 
+                card.captched = False
 
 
     
