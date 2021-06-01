@@ -8,12 +8,20 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.firefox.options import Options 
 import numpy as np
 from datetime import datetime
+import logging
 
+FORMAT = '%(asctime)-8s %(message)s'
+logging.basicConfig(format=FORMAT)
 
 def check_stock(card, page, proxy) -> bool:
-    print('Checking stock...')
+    logging.warning('Checking stock...')
     options = Options()
-    options.headless = True
+    if args.headless == 1:
+        options.headless = True
+
+    else:
+        pass
+
     capabilities = set_capabilities(proxy.address)
     if capabilities:
         driver = webdriver.Firefox(capabilities=set_capabilities(proxy.address), options=options, executable_path=r'./geckodriver')
@@ -25,30 +33,29 @@ def check_stock(card, page, proxy) -> bool:
         driver.get(card.url)
 
     except:
-        print('Captched')
+        logging.warning('Captched')
         card.captched = True
         driver.quit()
 
-        return True
+        return True, None
 
     if not bs4.BeautifulSoup(driver.page_source, 'html.parser').select('.a-button-input'):
-        print('No stock, sleep time')
+        logging.warning('No stock, sleep time')
         driver.quit()
         
-        return False
+        return False, None
 
     elif bs4.BeautifulSoup(driver.page_source, 'html.parser').select('.a-button-input'):
-        print('There is stock')
-        driver.quit()
+        logging.warning('There is stock')
 
-        return True
+        return True, driver
 
     else:
-        print('Connectivity-Captcha problem')
+        logging.warning('Connectivity-Captcha problem')
         card.captched = True
         driver.quit()
 
-        return True
+        return True, None
 
 def set_capabilities(proxy_address) -> object:
     if proxy_address[0] != '127.0.0.1':
@@ -67,21 +74,10 @@ def set_capabilities(proxy_address) -> object:
 
         return firefox_capabilities
     
-def buy_card(page, card, args) -> None:
+def buy_card(page, card, args, driver) -> None:
     print('buying card')
-    args.timedout = False
-    options = Options()
-    if args.headless == 1:
-        options.headless = True
-
-    else:
-        pass
-
-    driver = webdriver.Firefox(options=options, executable_path=r'./geckodriver')
-    driver.get(card.url)
     for step in page.buy_steps:
         done = False
-        count = 0
         init = time.time()
         while not done:
             try:
@@ -173,7 +169,7 @@ def main(args) -> None:
             while not proxy.captched:
                 init = time.time()
                 while not stock:
-                    stock = check_stock(card, page, proxy)
+                    stock, driver = check_stock(card, page, proxy)
                     if not card.captched:
                         time.sleep(abs(int(np.random.normal(10, 5, 1))))
 
@@ -182,7 +178,7 @@ def main(args) -> None:
                         exit()
                 
                 if not card.captched:
-                    args = buy_card(page, card, args)
+                    args = buy_card(page, card, args, driver)
                     if args.timedout:
                         break
 
