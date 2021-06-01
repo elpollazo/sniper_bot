@@ -8,6 +8,10 @@ from selenium.webdriver.firefox.options import Options
 from objects.common import config 
 import argparse
 import os
+import logging
+
+FORMAT = '%(asctime)-8s %(message)s'
+logging.basicConfig(format=FORMAT)
 
 stock_pattern = re.compile(r'https://twitter.*?')
 atc_pattern = re.compile(r'https://.*Quantity.*OfferListingId.*?')
@@ -21,6 +25,7 @@ def retreive_messages(channel_id, auth):
 		try:
 			r = requests.get(f'https://discord.com/api/v9/channels/{channel_id}/messages?limit=1', headers=headers)
 			response = json.loads(r.text)
+			done = True
 
 		except:
 			print('Resting')
@@ -34,7 +39,7 @@ def check_stock(args):
 	latest_message = retreive_messages(channel_id, auth)
 	new_message = retreive_messages(channel_id, auth)
 	while latest_message == new_message or not stock_pattern.match(new_message):
-		print('No stock')
+		logging.warning('No stock')
 		time.sleep(10)
 		new_message = retreive_messages(channel_id, auth)
 
@@ -69,7 +74,7 @@ def buy_card(atc_url):
 
 def main(args):
 	atc_urls = []
-	print('Starting bot')
+	logging.warning('Starting bot')
 	while True:
 		twitter_url = check_stock(args)
 		atc_url = get_atc_url(twitter_url, args)
