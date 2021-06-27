@@ -12,9 +12,4 @@ class Page:
 		self.name = name
 		self.buy_steps = config()[self.name]['buy_steps']
 
-class Proxy:
-	def __init__(self, address):
-		self.address = address 
-		self.captched = False
-
 

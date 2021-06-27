@@ -1,17 +1,16 @@
 {
 	"amazon":
 	{
-		"atc_class": ".css-4rbku5.css-18t94o4.css-901oao.css-16my406.r-1n1174f.r-1loqt21.r-poiln3.r-bcqeeo.r-qvutc0",
-		"discord_auth": "",
-		"drymode": "1",
+		"drymode": "0",
 		"headless": "0",
 		"maxprice": "800",
 		"timedout_time": "7",
-		"cards":{
-				"rtx-3070": {
-					"channel_id": "795837437062283274"
-					} 
+		"captcha":{
+			"class": ".a-last",
+			"text": "Sorry, we just need to make sure you're not a robot. For best results, please make sure your browser is accepting cookies."
 		},
+		"cards":["rtx-3070"]
+		,
 		"buy_steps":[
 		{
 			"class": "a-button-input",

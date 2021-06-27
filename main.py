@@ -1,94 +1,101 @@
-from selenium import webdriver
-import bs4
-import re
-import requests
-import json
-import time
-from selenium.webdriver.firefox.options import Options
-from objects.common import config 
 import argparse
-import os
 import logging
+import time 
+import re
+import os
+import subprocess
+from objects.common import config
+
+twitter_pattern = re.compile(r'https://twitter.com/.*?')
+atc_pattern = re.compile(r'https://.*Quantity.*OfferListingId.*?')
 
 FORMAT = '%(asctime)-8s %(message)s'
 logging.basicConfig(format=FORMAT)
 
-stock_pattern = re.compile(r'https://twitter.*?')
-atc_pattern = re.compile(r'https://.*Quantity.*OfferListingId.*?')
+def launch_processes(atc_links, args):
+    adder = 0
+    for url in atc_links:
+        os.system(f'python3 buyer.py --card {args.card} --page {args.page} --url "{url}" --output {adder} > ./outputs/output{adder} 2>&1 &')
+        adder += 1 
 
-def retreive_messages(channel_id, auth):
-	headers = {
-	'authorization': auth
-	}
-	done = False
-	while not done:
-		try:
-			r = requests.get(f'https://discord.com/api/v9/channels/{channel_id}/messages?limit=1', headers=headers)
-			response = json.loads(r.text)
-			done = True
+def read_data():
+    with open('./data/data.txt', 'r') as f:
+        data = [line.split() for line in f]
+        
+    return [link[0] for link in data]
 
-		except:
-			print('Resting')
-			time.sleep(10)
+def set_stock(value):
+    with open('./data/stock', 'w') as f:
+        f.write(value)
 
-	return response[0]['content']
+def get_stock():
+    with open('./data/stock', 'r') as f:
+        stock = f.read()
 
-def check_stock(args):
-	channel_id = config()[args.page]['cards'][args.card]['channel_id']
-	auth = config()[args.page]['discord_auth']
-	latest_message = retreive_messages(channel_id, auth)
-	new_message = retreive_messages(channel_id, auth)
-	while latest_message == new_message or not stock_pattern.match(new_message):
-		logging.warning('No stock')
-		time.sleep(10)
-		new_message = retreive_messages(channel_id, auth)
+    return stock.split()[0] == 'True'
 
-	url = new_message.split()[0]
-	print(f'New url found: {url}')
+def get_current_process():
+    proc = subprocess.Popen(["ps -aux | grep 'buyer.py' | wc -l"], stdout=subprocess.PIPE, shell=True)
+    (out, _) = proc.communicate()
+    
+    return int(out.decode('utf-8').split()[0]) - 2
 
-	return url
+def get_pid():
+    with open('./data/pid_process', 'r') as f:
+        pid_process = f.read()
 
-def get_atc_url(twitter_url, args):
-	print('Getting ATC url')
-	options = Options()
-	options.headless = True
-	driver = webdriver.Firefox(executable_path = r'./geckodriver', options=options)
-	driver.get(twitter_url)
-	done = False
-	while not bs4.BeautifulSoup(driver.page_source, 'html.parser').select(config()[args.page]['atc_class']):
-		pass
+    return pid_process
 
-	soup = bs4.BeautifulSoup(driver.page_source, 'html.parser')
-	driver.quit()
-	for element in soup.select(config()[args.page]['atc_class']):
-		if atc_pattern.match(element.text):
+def get_captcha():
+    with open("./data/captcha", "r") as f:
+        captcha = f.read()
 
-			return element.text
-
-		else:
-			continue
-
-def buy_card(atc_url):
-	print('Buying card')
-	os.system(f'python3 buyer.py --card {args.card} --page {args.page} --drymode {config()[args.page]["drymode"]} --headless {config()[args.page]["headless"]} --maxprice {config()[args.page]["maxprice"]} --timedout_time {config()[args.page]["timedout_time"]} --url "{atc_url}"')
+    return captcha.split()[0] == 'True'
 
 def main(args):
-	atc_urls = []
-	logging.warning('Starting bot')
-	while True:
-		twitter_url = check_stock(args)
-		atc_url = get_atc_url(twitter_url, args)
-		if atc_url not in atc_urls:
-			print(f'New ATC url found: {atc_url}')
-			atc_urls.append(atc_url)
-			buy_card(atc_url)
+    atc_links= read_data()
+    launch_processes(atc_links, args)
+    set_stock("False")
+    while True:
+        try:
+            while True:
+                try:
+                    stock = get_stock()
+                
+                except:
+                    pass
+                
+                if stock:
+                    os.system(f'./killer2.sh {get_pid()}')
+                    while stock:
+                        processes = get_current_process()
+                        logging.warning(f'Bot heartbeat. Stock: {stock}. Current processes: {processes}. Captcha: {get_captcha()}')
+                        time.sleep(10)
+                        try:
+                            stock = get_stock()
 
-		else:
-			print('not new ATC')			
+                        except:
+                            pass
+
+                processes = get_current_process()
+                if (processes != len(atc_links) and processes != 1) or (processes == 1 and not get_stock()):
+                    logging.warning('Some process may died. Restarting.')
+                    os.system('./killer1.sh')
+                    launch_processes(atc_links, args)
+
+                logging.warning(f'Bot heartbeat. Stock: {stock}. Current processes: {processes}. Captcha: {get_captcha()}')
+                time.sleep(10)
+                
+        
+        except KeyboardInterrupt:
+            print("Bye")
+            os.system('./killer1.sh')
+            os.system('rm -r ./outputs/*')
+            exit()
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description='Main script')
-	parser.add_argument("-c", "--card", help='Type of card')
-	parser.add_argument("-p", "--page", help='Type of card')
-	args = parser.parse_args()
-	main(args)
+    parser = argparse.ArgumentParser(description='Buyer bot')
+    parser.add_argument("-c", "--card", help='Type of card')
+    parser.add_argument("-p", "--page", help='Buying page')
+    args = parser.parse_args()
+    main(args)

@@ -4,37 +4,45 @@ import time
 from objects.sniper_objects import Card, Page
 from objects.common import config
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.firefox.options import Options 
 import numpy as np
-from datetime import datetime
 import logging
+import os
+from main import set_stock, get_stock, get_captcha
 
 FORMAT = '%(asctime)-8s %(message)s'
 logging.basicConfig(format=FORMAT)
 
-def check_stock(card, page) -> bool:
+def check_stock(card, page, args) -> bool:
     logging.warning('Checking stock...')
     options = Options()
     if args.headless == 1:
         options.headless = True
 
-    else:
-        pass
-
-    driver = webdriver.Firefox(options=options, executable_path=r'./geckodriver')
-    
+    driver = webdriver.Firefox(options=options, executable_path=r'./geckodriver')    
     try:
         driver.get(card.url)
+        with open('captcha.html', 'w') as f:
+            f.write(driver.page_source)
 
     except:
-        logging.warning('Captched')
+        logging.warning('Failed to get request')
         card.captched = True
         driver.quit()
 
         return True, None
 
-    if not bs4.BeautifulSoup(driver.page_source, 'html.parser').select('.a-button-input'):
+    if bs4.BeautifulSoup(driver.page_source, 'html.parser').select('.a-last'):
+        if bs4.BeautifulSoup(driver.page_source, 'html.parser').select('.a-last')[0].text == config()[page.name]['captcha']['text']:
+            logging.warning("Captched")
+            card.captched = True
+            driver.quit()
+            if not get_captcha():
+                send_captcha("True")
+
+            return True, None
+
+    elif not bs4.BeautifulSoup(driver.page_source, 'html.parser').select('.a-button-input'):
         logging.warning('No stock, sleep time')
         driver.quit()
         
@@ -51,7 +59,7 @@ def check_stock(card, page) -> bool:
         driver.quit()
 
         return True, None
-    
+
 def buy_card(page, card, args, driver) -> None:
     print('buying card')
     for step in page.buy_steps:
@@ -119,29 +127,46 @@ def buy_card(page, card, args, driver) -> None:
 
     exit()
 
+def send_pid():
+    with open("./data/pid_process", "w") as f:
+        f.write(str(os.getpid()))
+
+def send_captcha(value):
+    with open("./data/captcha", "w") as f:
+        f.write(value)
+
 def main(args) -> None:
+    os.system(f'mv ./outputs/output{args.output} ./outputs/{os.getpid()}') #Renaming the output file to the current process ID
     card = Card(args.card, args.page)
     card.url = args.url
     page = Page(args.page)
-    print('Starting bot')
-    print(f'Max price: {args.maxprice} USD')
-    print(f'Dry mode: {args.drymode}')
-    print(f'Headless: {args.headless}')
-
+    print(f'Checking Stock for {card.url}')
+    args.headless = 1
+    args.maxprice = float(config()[args.page]['maxprice'])
+    args.drymode = config()[args.page]['drymode']
+    args.timedout_time = int(config()[args.page]['timedout_time'])
     while True:
         while True:
             stock = False
             init = time.time()
             while not stock:
-                stock, driver = check_stock(card, page)
-                if not card.captched:
+                stock, driver = check_stock(card, page, args)
+                if not card.captched and not stock:
                     time.sleep(abs(int(np.random.normal(10, 5, 1))))
 
-                if time.time() - init > 60*15:
+                if time.time() - init > 60*5:
                     print('Buy timedout')
-                    exit()
+                    set_stock("False")
+                    args.headless = 1
                     
             if not card.captched:
+                if args.headless != int(config()[args.page]['headless']):
+                    args.headless = int(config()[args.page]['headless'])
+
+                if not get_stock():
+                    send_pid()
+                    set_stock("True")
+
                 args = buy_card(page, card, args, driver)
                 if args.timedout:
                     break
@@ -149,16 +174,11 @@ def main(args) -> None:
             else: 
                 card.captched = False
 
-
-    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Buyer bot')
     parser.add_argument("-c", "--card", help='Type of card')
     parser.add_argument("-p", "--page", help='Buying page')
-    parser.add_argument("-m", "--maxprice", help='Max price', type=float)
-    parser.add_argument("-d", "--drymode", help='Dry mode bot', type=int)
-    parser.add_argument("-H", "--headless", help='Headless browser', type=int)
-    parser.add_argument("-t", "--timedout_time", help='Timedout time', type=int)
     parser.add_argument("-u", "--url", help='ATC url')
+    parser.add_argument("-o", "--output", help='Number of output file')
     args = parser.parse_args()
     main(args)
