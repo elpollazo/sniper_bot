@@ -53,6 +53,7 @@ def get_captcha():
     return captcha.split()[0] == 'True'
 
 def main(args):
+    os.system('mkdir outputs 2>/dev/null')
     atc_links= read_data()
     launch_processes(atc_links, args)
     set_stock("False")
