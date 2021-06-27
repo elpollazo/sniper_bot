@@ -64,7 +64,7 @@ def main(args):
                     stock = get_stock()
                 
                 except:
-                    pass
+                    break
                 
                 if stock:
                     os.system(f'./killer2.sh {get_pid()}')
@@ -76,7 +76,7 @@ def main(args):
                             stock = get_stock()
 
                         except:
-                            pass
+                            break
 
                 processes = get_current_process()
                 if (processes != len(atc_links) and processes != 1) or (processes == 1 and not get_stock()):
