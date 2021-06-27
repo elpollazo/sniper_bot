@@ -1,6 +1,6 @@
 # sniper_bot
 
-This bot is used to monitoring in real time stock of RTX-3070 graphic card and buy it when is available. This is done by continously requesting 9 Add-To-Cart links (ATC) of different RTX-3070 models.
+This bot is used to monitoring in real time stock of RTX-3070 graphic card and buy it when is available. This is done by continously requesting 9 Add-To-Cart links (ATC) of different RTX-3070 models. The bot was tested on Linux.
 
 Ussage:
 
