@@ -27,9 +27,11 @@ This bot is used to monitoring in real time stock of RTX-3070 graphic card and b
 - Amazon credentials: You must provide your amazon credentials in the buying steps of config.json file to complete the buying process. The credentials must be inserted in the "key" field shown below:
 
   Email: 
+  
 ![image](https://user-images.githubusercontent.com/57805712/123532457-30cf3580-d6db-11eb-9674-95bb2244ff94.png)
 
   Password:
+  
 ![image](https://user-images.githubusercontent.com/57805712/123532476-56f4d580-d6db-11eb-85ef-806f06baaadc.png)
 
 
