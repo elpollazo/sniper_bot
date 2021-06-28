@@ -14,9 +14,10 @@ This bot is used to monitoring in real time stock of RTX-3070 graphic card and b
 ## Ussage:
 
 1. Clone this repository: git clone https://github.com/elpollazo/sniper_bot
-2. Install the libraries needed: ./install.sh
-3. Set the parameters of the configuration file in ./objects/config.json. The description of the parameters needed are below.
-4. Start the bot: python3 main.py --page amazon --card rtx-3070
+2. geckodriver, killer1.sh, killer2.sh, install.sh must have execution privileges: chmod +x geckodriver && chmod +x install.sh && chmod +x killer1.sh && chmod +x killer2.sh
+3. Install the libraries needed: ./install.sh
+4. Set the parameters of the configuration file in ./objects/config.json. The description of the parameters needed are below.
+5. Start the bot: python3 main.py --page amazon --card rtx-3070
 
 ## Parameters of config.json:
 
