@@ -34,7 +34,7 @@ def set_stock(value):
         f.write(value)
 
 def get_stock():
-    """Check the value of ./data/stock"""
+    """Check the value of ./data/stock."""
     with open('./data/stock', 'r') as f:
         stock = f.read()
 
