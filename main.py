@@ -6,7 +6,8 @@ import os
 import subprocess
 from objects.common import config
 
-"""Main script of the bot. It manages the current processes launched (1 process/link)."""
+""""Main script of the bot. It manages the current processes launched (1 process/link)."""
+"""Ussage: python3 main.py --page amazon --card rtx-3070"""
 
 twitter_pattern = re.compile(r'https://twitter.com/.*?')
 atc_pattern = re.compile(r'https://.*Quantity.*OfferListingId.*?')
