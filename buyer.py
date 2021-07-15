@@ -14,6 +14,7 @@ FORMAT = '%(asctime)-8s %(message)s'
 logging.basicConfig(format=FORMAT)
 
 def check_stock(card, page, args) -> bool:
+    """This function checks the availability of stock. If stock is available it will return the driver and bool True value."""
     logging.warning('Checking stock...')
     options = Options()
     if args.headless == 1:
@@ -61,6 +62,7 @@ def check_stock(card, page, args) -> bool:
         return True, None
 
 def buy_card(page, card, args, driver) -> None:
+    """This function will do the buying process when the bot finds stock."""
     print('buying card')
     for step in page.buy_steps:
         done = False
@@ -128,14 +130,17 @@ def buy_card(page, card, args, driver) -> None:
     exit()
 
 def send_pid():
+    """This funcion modifies the file ./data/pid_process to the current pid of the bot when it finds stock."""
     with open("./data/pid_process", "w") as f:
         f.write(str(os.getpid()))
 
 def send_captcha(value):
+    """If the bot is captched this function will modify the value of ./data/captcha to 'True'."""
     with open("./data/captcha", "w") as f:
         f.write(value)
 
 def main(args) -> None:
+    """Main function of buyer bot. It will start a loop to continously search stock and when it is available will start the buying process."""
     os.system(f'mv ./outputs/output{args.output} ./outputs/{os.getpid()}') #Renaming the output file to the current process ID
     card = Card(args.card, args.page)
     card.url = args.url
