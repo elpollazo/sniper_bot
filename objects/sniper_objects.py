@@ -1,5 +1,7 @@
 from objects.common import config
 
+"""Objects used in buyer.py to do the buying process."""
+
 class Card:
 	def __init__(self, name, page):
 		self.name = name 
